@@ -24,11 +24,14 @@
 /*******************************************************************************
  * List header files
 *******************************************************************************/
-
+/*to do list functions used*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <time.h>
 
 /* gcc -Wall -Werror -ansi -o main.out main.c -lm */
 
@@ -36,6 +39,7 @@
  * List preprocessing directives
 *******************************************************************************/
 
+#define MAX_TRANSACTION_NAME 20
 #define MAX_TRANSACTION_SIZE 100
 #define MAX_NAME_SIZE 25
 #define MAX_ACCOUNT_NAME_SIZE 15
@@ -50,8 +54,7 @@
 #define MAX_USERNAME_LEN 20
 #define MIN_PASSWORD_LEN 3
 #define MAX_PASSWORD_LEN 20
-#define MAX_TRANSACTION_NAME 20
-
+#define BUFFER_SIZE 1000
 
 
 /*******************************************************************************
@@ -78,7 +81,6 @@ struct account {
     char accName[MAX_ACCOUNT_NAME_SIZE];
 	transaction_t transactionList[MAX_TRANSACTION_SIZE];
 	unsigned int numTransactions;
-	/*unsigned int accBalance;*/
 };
 typedef struct account account_t;
 
@@ -108,25 +110,36 @@ typedef struct customer customer_t;
 
 /* Manager functions */
 void printManagerMenu(void);        			/* Author: Thomas Good - DONE */
-customer_t createCustomer(void);          		/* Author: Thomas Good - DONE*/
-char* generateId(void);						/* Author: Thomas Good - DONE*/
-void deleteCustomer();       /* Author: Thomas Good */
+customer_t createCustomer(void);          		
+	/* Author: Thomas Good, Carter Pisani - DONE*/
+void createDirectory(customer_t cust);			/* Author: Thomas Good - DONE */
+void deleteDirectory(customer_t cust);			/* Author: Thomas Good - DONE */
+void removeFromDatabase(customer_t cust);		/* Author: Thomas Good - DONE */
+void deleteLine(FILE *srcFile, FILE *tempFile, const int line); 
+	/* Author: Thomas Good - DONE */
+char* generateId(void);							/* Author: Thomas Good - DONE */
+void deleteCustomer(customer_t cust);       	/* Author: Thomas Good - DONE*/
 void saveCustomer(customer_t customer);         /* Author: Thomas Good - DONE */
-void displayCustomer(customer_t* customerp);      /* Author: Lukas Gaspar - DONE */
+/* void selectCustomer(); 						   Author: Lukas Gaspar */
+void displayCustomer(customer_t customer);      /* Author: Lukas Gaspar - DONE */
 void changeCustomerDetails(customer_t *customerp); /* Author: Lukas Gaspar */
-int readManagerAnswer(void);        			/* Author: Thomas Good - kinda DONE */
+int readManagerAnswer(void);        	/* Author: Thomas Good - Kinda DONE */
 void invalidManagerChoice(void);    			/* Author: Thomas Good - DONE */
 
 /* Customer functions */
-void printCustomerMenu(void);       			/* Author: Thomas Good - DONE */
+void printCustomerMenu(void);       		/* Author: Thomas Good - DONE */
 
 /* Author: Reece Wallace*/
-void addAccount(customer_t *customer); 			/* Author: Reece Wallace - DONE */
-unsigned long generateAccountNum(customer_t *customer); /* Author: Reece Wallace - DONE */
-void displayAccounts(customer_t *customer); 	/* Author: Reece Wallace - DONE */
-void displayAccount(account_t *account); 		/* Author: Reece Wallace - DONE */
-void deposit(customer_t *customer, account_t *account); /* Author: Reece Wallace, Carter Pisani - DONE */
-void withdraw(customer_t *customer, account_t *account); /* Author: Reece Wallace, Carter Pisani - DONE */
+void addAccount(customer_t *customer); 		/* Author: Reece Wallace - DONE */
+unsigned long generateAccountNum(customer_t *customer); 
+	/* Author: Reece Wallace - DONE */
+void displayAccounts(customer_t *customer); 
+	/* Author: Reece Wallace, Jeremy Hoy - DONE */
+void displayAccount(account_t *account); 	/* Author: Reece Wallace - DONE */
+void deposit(customer_t *customer, account_t *account); 
+	/* Author: Reece Wallace, Carter Pisani - DONE */
+void withdraw(customer_t *customer, account_t *account); 
+	/* Author: Reece Wallace, Carter Pisani - DONE */
 void transfer(customer_t *customer); /* Author: Reece Wallace - DONE*/
 int readCustomerAnswer(customer_t *customer);   /* Author: Thomas Good - kinda DONE */
 void invalidCustomerChoice(customer_t *customer); /* Author: Thomas Good - DONE */
@@ -135,11 +148,12 @@ int calcBalance(account_t *account); /* Author: Reece Wallace - DONE */
 void printTransaction(transaction_t *transaction, int count); 	
 
 /* Shared */
-void printMenu(void);               			/* Author: Thomas Good - DONE */
-/*int login(void);*/                   				/* Author: Lukas Gaspar - DONE */
-void changePassword(void);          			/* Author: Lukas Gaspar - shouldnt password be customer struct variable? */
+void printMenu(void);               	/* Author: Thomas Good - DONE */
+/*int login(void);*/                   	/* Author: Lukas Gaspar - DONE */
+void changePassword(void);          	/* Author: Lukas Gaspar - shouldnt password be customer struct variable? */
 
-void searchTransactions(customer_t *customer); 	/* Author: Reece Wallace */
+void searchTransactions(customer_t *customer); 	
+	/* Author: Reece Wallace, Carter Pisani */
 account_t* accountSelect
 	(char* prompt, customer_t *customer); /* Author: Reece Wallace - DONE*/
 void printSortedTransactions
@@ -152,17 +166,15 @@ transaction_t transferDeposit
 	/* Author: Reece Wallace - DONE */
 void sortTransactions(transaction_t* list, unsigned int numTransactions); 
 	/* Author: Reece Wallace - DONE */
-void searchByName(customer_t *customer); /* Author: Reece Wallace */
-void authenticate(char *a, char *b);						/* Author: Lukas Gaspar */
-int logout;							/* Author: Carter Pisani - Done*/
+void searchByName(customer_t *customer);  /* Author: Reece Wallace */
+void authenticate(char *a, char *b);	 /* Author: Lukas Gaspar */
+/*int logout;*/							/* Author: Jeremy Hoy - */
 
 
 int main(void) {
-	do{
 	printMenu();
 	printManagerMenu();
 	readManagerAnswer();
-	}while(logout ==0);
     return 0;
 }
 
@@ -250,27 +262,13 @@ void printMenu(void){
  * - char *
 *******************************************************************************/
 char* generateId(void){
-	FILE *fp = fopen("database","r");
-    int ch=0;
-    int lines=0;
-    if (fp == NULL){
-    	char *id = "0001";
-  		return id;
-	} else {
-		lines++;
-		while ((ch = fgetc(fp)) != EOF)
-		{
-			if (ch == '\n'){
-				lines++;
-			}
-		}
-		fclose(fp);
-	}
+	int a;
+    srand ( time(NULL) );
+    a = 1000+(rand()%9000);
 	char* id = malloc(5);
-	sprintf(id, "%04d", lines);
+	sprintf(id, "%04d", a);
   	return id;
-}
-
+} 
 /*******************************************************************************
  * This function logs the user out to the main login menu
  * inputs:
@@ -317,7 +315,6 @@ char* generateId(void){
 int readManagerAnswer(void){
 	char answer;
  	answer = getchar();
-
 	if (answer == '\n') {
 		invalidManagerChoice();
 	} else {
@@ -329,34 +326,23 @@ int readManagerAnswer(void){
 		}
 		else if (answer == '1') {
 			/* Create customer */
-			customer_t customer = createCustomer();
-			saveCustomer(customer);
+			customer_t cust = createCustomer();
+    		saveCustomer(cust);
+			createDirectory(cust);
+
 		} else if (answer == '2') {
-
-			deleteCustomer();
-			/* Delete customer */
+			/* Delete customer - TODO: Select customer to delete ?*/
+			
 		} else if (answer == '3') {
-			customer_t customer;
-			customer_t* customerp = &customer;
-			displayCustomer(customerp);
-
-			struct customer {
-    char name[MAX_NAME_SIZE];
-	char postCode[MAX_POSTCODE_LEN];
-	char phone[MAX_PHONE_NUM_LEN];
-	char* clientId[MAX_CLIENT_ID_LEN];
-	char email[MAX_EMAIL_LEN];
-    account_t accountList [MAX_ACCOUNT_SIZE];
-    date_t birthday;
-	unsigned int customerBalance;
-	unsigned int numAccounts;
-};
+			/* Display customer - TODO: Select customer to display ?*/
+			
 		} else if (answer == '4') {
 			/* Search customer transactions */
 		} else if (answer == '5') {
 			/* Update customer details */
 		} else if (answer == '6') {
-				logout = 0;
+				printMenu();
+				
 			/* Log out */
 		} else {
 			invalidManagerChoice();
@@ -389,7 +375,7 @@ int readCustomerAnswer(customer_t *customer){
 			char choice[MAX_ACCOUNT_NAME_SIZE];
 			displayAccounts(customer);
 
-			printf("select an account");
+			printf("select an account\n");
 			scanf("%s", choice);
 			for(i=0; i<customer->numAccounts; i++){
 				if(strcmp(choice, customer->accountList[i].accName) == 0){
@@ -434,7 +420,7 @@ int readCustomerAnswer(customer_t *customer){
 		} else if (answer == '7') {
 			/* Change password */
 		} else if (answer == '6') {
-			logout = 0;
+			
 			/* Log out */
 		} else {
 			invalidCustomerChoice(customer);
@@ -459,7 +445,7 @@ void printManagerMenu(void){
         "4. Search customer transactions\n"
         "5. Update customer details\n"
     	"6. Log out\n"
-		"Enter your choice>");
+		"Enter your choice>\n");
 }
 
 /*******************************************************************************
@@ -498,130 +484,363 @@ customer_t createCustomer(void){
 	char tempDay[20];
 	char tempMonth[20];
 	char tempYear[20];	
+	int b =0;
+	
+					/**************************** Name ****************************/
 
-	printf("Enter Name> ");
+	printf("\nEnter Name: ");
 	scanf("%100[^\n]", customer.name);
 	getchar();
 	
+
+					/**************************** Phone number ****************************/
 	while (check == 0) {
-		printf("Enter Phone Number> ");
+		printf("\nEnter Phone Number: ");
 		scanf("%11[^\n]", customer.phone);
 		getchar();
+		val = atoi(customer.phone);
+			int i, flag=2;
+			for(i=0;i<strlen(customer.phone);i++){
+			if(customer.phone[i]<48 || customer.phone[i]>57){
+			flag=1;}}
+			if(flag!=1){
+				b=1;}
+			else {
+				b=0;
+				} 
+	if(val == 0 || b == 0){
+			printf("\nPhone Numbers MUST contain only numbers.");
+	} else{
+
 		int i, count = 0;
     	for (i = 0; customer.phone[i] != '\0'; ++i){
 			count++;
 		}
 		if (i != 10) {
-			printf("Invalid Phone Number\n");
+			printf("\nPhone Number MUST be 10 digits in length");
 		} else {
 			check = 1;
+			printf("\n\n");
 		}
 	}
+	}
 	check = 0;
+	
+					/**************************** Post Code ****************************/
 	while (check == 0) {
-		printf("Enter Post Code> ");
+		printf("\nEnter Post Code: ");
 		scanf("%5[^\n]", customer.postCode);
 		getchar();
+		val = atoi(customer.postCode);
+		int i, flag=2;
+			for(i=0;i<strlen(customer.postCode);i++){
+			if(customer.postCode[i]<48 || customer.postCode[i]>57){
+			flag=1;}}
+			if(flag!=1){
+				b=1;}
+			else b=0;
+	if(val == 0 || b == 0){
+			printf("\nPost Code MUST contain only numbers.");
+	} else{
+
 		int i, count = 0;
     	for (i = 0; customer.postCode[i] != '\0'; ++i){
 			count++;
 		}
 		if (i != 4) {
-			printf("Invalid Post Code\n");
+			printf("\nPost Code MUST be 4 digits in length");
 		} else {
 			check = 1;
+			printf("\n\n");
 		}
 	}
+}
 	check = 0;
-	printf("Enter Email Address> ");
+
+
+					/**************************** Email Adress ****************************/
+	printf("\nEnter Email Address: ");
 	scanf("%20[^\n]", customer.email);
 	getchar();
 
+
+					/**************************** Birthday Day ****************************/
 	while(check == 0) {
-		printf("Enter birthday: day>");
+		printf("\nEnter Birthday (Day): ");
 		scanf("%s", &tempDay[0]);
 		/* Checks if given value is int */
 		val = atoi(tempDay);
-		if (val == 0) {
-			printf("Invalid day. ");
+			int i, flag=2;
+			for(i=0;i<strlen(tempDay);i++){
+			if(tempDay[i]<48 || tempDay[i]>57){
+			flag=1;}}
+			if(flag!=1){
+				b=1;}
+			else b=0;
+	if(val == 0 || b == 0){
+			printf("\nBirthday (Day) MUST contain only numbers.");
 		} else {
 			if (val >= 1 && val <= 31) {
 				birthday.day = val;
 				check = 1; 
-			} else printf("Invalid day. "); 
+				printf("\n\n");
+			} else printf("\nInvalid Day."); 
 		}
 	}
-	/* Resets check */
 	check = 0;
-	/* Until given month is valid, ask for birthday month */
+	
+					/**************************** Birthday Month ****************************/
 	while(check == 0) {
-		printf("Enter birthday: month>");
+		printf("\nEnter Birthday (Month): ");
 		scanf("%s", &tempMonth[0]);
 		/* Checks if given value is int */
 		val = atoi(tempMonth);
-		if (val == 0) {
-			printf("Invalid month. ");
+			int i, flag=2;
+			for(i=0;i<strlen(tempMonth);i++){
+			if(tempMonth[i]<48 || tempMonth[i]>57){
+			flag=1;}}
+			if(flag!=1){
+				b=1;}
+			else b=0;
+	if(val == 0 || b == 0){
+			printf("\nBirthday (Month) MUST contain only numbers. ");
 		} else {
 			if (val >= 1 && val <= 12) {
 				birthday.month = val;
 				check = 1; 
-			} else printf("Invalid month. "); 
+				printf("\n\n");
+			} else printf("\nInvalid Month."); 
 		}
 	}
 	/* Resets check */
 	check = 0;
-	/* Until given year is valid, ask for birthday year */
+	
+					/**************************** Birthday Year ****************************/
 	while(check == 0) {
-		printf("Enter birthday: year>");
+		printf("\nEnter Birthday (Year): \n");
 		scanf("%s", &tempYear[0]);
 		/* Checks if given value is int */
 		val = atoi(tempYear);
-		if (val == 0) {
-			printf("Invalid year. ");
+		int i, flag=2;
+			for(i=0;i<strlen(tempYear);i++){
+			if(tempYear[i]<48 || tempYear[i]>57){
+			flag=1;}}
+			if(flag!=1){
+				b=1;}
+			else b=0;	
+	if(val == 0 || b == 0){
+			printf("\nBirthday (Month) MUST contain only numbers. ");
 		} else {
 			if (val >= 1800 && val <= 2017) {
 				birthday.year = val;
 				check = 1; 
+				printf("\n\n");
 			} else printf("Invalid year. "); 
 		}
 	}
+	/* Resets check */
 	check = 0;
 	getchar();
 	customer.birthday = birthday;
 	customer.clientId[0] = generateId();
-	customer.customerBalance = 5;
-	customer.numAccounts = 1;
+	customer.customerBalance = 0;
+	customer.numAccounts = 0;
 	return customer;
 }
 
 /*******************************************************************************
- * This function allows a manager to delete a customer
+ * This function initialises the customer directory with savings account
  * inputs:
- * - customer_t
+ * - cutsomer_t
  * outputs:
  * - none
 *******************************************************************************/
-void deleteCustomer() {}
-/*void deleteCustomer(){
-	/* Removes customer details from managers customer file & deletes 
-	customers folder */
-	/*char* answer = malloc(1);
-	printf("Are you sure you want to delete this customer? Y/N> ");
-	scanf("%c", answer);
-	if (){
-		printf("Customer Deleted\n");
-	} else if (){
-		printf("Customer Not Deleted\n");
+void createDirectory(customer_t cust) {
+	int check = mkdir(*cust.clientId);
+	long number = 10000001 + (rand() % 1000);
+	char* accNumber = malloc(9);
+	sprintf(accNumber, "%ld", number);
 
+	/*char* accNumber = "10000001";*/
+
+    /* check if directory is created or not */
+    if (!check) {
+		FILE *fp;
+		/* Create accounts file */
+
+		char *accountPath = (char *)malloc(20);
+		strcpy(accountPath, *cust.clientId);
+		strcat(accountPath, "/accounts");
+
+		printf("%s", accountPath);
+
+		fp = fopen(accountPath, "w");
+		fprintf(fp, "%s Savings 5\n", accNumber);	
+		fclose (fp);
+
+		/* Create transaction file */
+
+		char *transactionPath = (char *)malloc(20);
+		strcpy(transactionPath, *cust.clientId);
+		strcat(transactionPath, "/transactions");
+	
+		fp = fopen(transactionPath, "w");
+
+
+		fprintf(fp, "%s Opening deposit 5\n", accNumber); 
+		fclose (fp);
+
+		/* *************************** TODO: *************************** */
+		/* Password input for folder encryption */
+		/* Create customer data file with data similar to database file to read off when customer logs in */
+		/* ************************************************************* */
+
+		printf("Customer directory created\n");
 	} else {
-		printf("Invalid answer\n");
+        printf("Error: Unable to create customer directory\n");
+    }
+}
+
+/*******************************************************************************
+ * This function deletes the customer from the database & directory
+ * inputs:
+ * - none
+ * outputs:
+ * - cutsomer_t
+*******************************************************************************/
+void deleteCustomer(customer_t cust) {
+	int check = 0;
+	int yResult;
+	int nResult;
+	char* answer = malloc(1);
+	printf("Are you sure you want to delete this customer? Y/N> ");
+	while(check == 0) {
+		scanf("%s", answer);
+		char* yes = "Y";
+		char* no = "N";
+		yResult = strcmp(answer, yes);
+		nResult = strcmp(answer, no);	
+		if (yResult == 0){
+
+			removeFromDatabase(cust);
+			deleteDirectory(cust);
+
+			printf("Customer Deleted\n");
+			check = 1;
+		} else if (nResult == 0){
+			printf("Customer Not Deleted\n");
+			check = 1;
+		} else {
+			printf("Invalid answer. Please enter 'Y' or 'N'>");
+		}
 	}
-	/* Add a double check prompt */
-	/*getchar();
-	printManagerMenu();
-	readManagerAnswer();
-    
-}*/
+}
+
+/*******************************************************************************
+ * This function deletes the customers directory
+ * inputs:
+ * - none
+ * outputs:
+ * - cutsomer_t
+*******************************************************************************/
+void deleteDirectory(customer_t cust) {
+	int dataStatus, accStatus, tranStatus, dirStatus;
+
+	char *accountPath = (char *)malloc(20);
+	strcpy(accountPath, *cust.clientId);
+	strcat(accountPath, "/accounts");
+
+	char *transactionPath = (char *)malloc(20);
+	strcpy(transactionPath, *cust.clientId);
+	strcat(transactionPath, "/transactions");
+
+	char *dataPath = (char *)malloc(20);
+	strcpy(dataPath, *cust.clientId);
+	strcat(dataPath, "/data");
+
+	dataStatus = remove(dataPath);
+
+	if (dataStatus == 0) {
+		accStatus = remove(accountPath);
+		if (accStatus == 0) {
+			tranStatus = remove(transactionPath);
+			if (tranStatus == 0) {
+				dirStatus = remove(*cust.clientId);
+				if (dirStatus == 0) {
+				} else
+				{
+					perror("Following error occurred");
+				}
+			} else
+			{
+				perror("Following error occurred");
+			}
+		} else
+		{
+			perror("Following error occurred");
+		}
+	} else
+	{
+		perror("Following error occurred");
+	}
+	
+}
+
+/*******************************************************************************
+ * This function removes customer from database file
+ * inputs:
+ * - cutsomer_t
+ * outputs:
+ * - none
+*******************************************************************************/
+void removeFromDatabase(customer_t cust){
+	char string[200];
+	int line_number = 1;
+	int line_to_delete;
+	FILE* fp = NULL;
+	FILE* tempFile = NULL;
+    fp = fopen("database", "r");
+	if(fp == NULL) {
+        printf("Read error\n");
+    } else {
+		while (fgets(string, sizeof string, fp)) {
+			if (strstr(string, cust.clientId[0])) {
+				line_to_delete = line_number;
+            	printf("line number is: %d\n", line_number);
+        	}	
+			if (strchr(string, '\n')) {
+				line_number += 1;
+			}
+    	}
+		tempFile = fopen("temp", "w");
+		rewind(fp);
+		deleteLine(fp, tempFile, line_to_delete);
+		fclose(fp);
+    	fclose(tempFile);
+		remove("database");
+    	rename("temp", "database");
+	}
+}
+
+/*******************************************************************************
+ * This function deletes the line in the database file in which 
+ * the desired customer occurs.
+ * inputs:
+ * - FILE *srcFile, FILE *tempFile, const int line
+ * outputs:
+ * - none
+*******************************************************************************/
+void deleteLine(FILE *srcFile, FILE *tempFile, const int line) {
+    char buffer[BUFFER_SIZE];
+    int count = 1;
+    while ((fgets(buffer, BUFFER_SIZE, srcFile)) != NULL)
+    {
+        if (line != count) {
+            fputs(buffer, tempFile);
+		}
+        count++;
+    }
+}
 
 /*******************************************************************************
  * This function allows a manager to save the customer to the database
@@ -660,12 +879,12 @@ void saveCustomer(customer_t cust) {
  * outputs:
  * - none
 *******************************************************************************/
-void changeCustomerDetails(customer_t *customerp) {
+/*void changeCustomerDetails(customer_t *customerp) {
 	char choice[100];
 	char check[100];
 	for(;;) {
-		displayCustomer(customerp);
-		printf("------------------------------------\n"
+		displayCustomer(customerp);*/
+		/*printf("------------------------------------\n"
 			"Enter what you would like to change\n"
 			"of customer \"%s\":\n"
 			"name\n"
@@ -677,10 +896,10 @@ void changeCustomerDetails(customer_t *customerp) {
 			"customer balance\n"
 			"accounts\n"
 			"c (to exit)"
-			"------------------------------------\n", customerp->name);
-
+			"------------------------------------\n", customerp->name);*/
+/*		
 		printf("Enter what you would like to change (enter c to exit)> ");
-		scanf("%100[^\n]", &choice);
+		scanf("%100[^\n]", choice);
 		if(strcmp(choice, "c") == 0) {
 			break;
 		}
@@ -692,7 +911,7 @@ void changeCustomerDetails(customer_t *customerp) {
 			if(strcmp(check, "c") == 0) {
 				continue;
 			}
-			if(strlen(check) < 3 || strlen(check) > MAX_NAME_SIZE) {
+			if(check.len < 3 || check.len > MAX_NAME_SIZE) {
 				printf("invalid character length");
 				continue;
 			}
@@ -707,11 +926,11 @@ void changeCustomerDetails(customer_t *customerp) {
 			if(strcmp(check, "c") == 0) {
 				continue;
 			}
-			if(strlen(check) < 3 || strlen(check) > MAX_POSTCODE_LEN) {
+			if(check.len < 3 || check.len > MAX_POSTCODE_LEN) {
 				printf("invalid character length");
 				continue;
 			}
-			strcpy(check, customerp->postCode);
+			strcpy(check, customerp->postcode);
 			continue;
 		}
 
@@ -722,7 +941,7 @@ void changeCustomerDetails(customer_t *customerp) {
 			if(strcmp(check, "c") == 0) {
 				continue;
 			}
-			if(strlen(check) < 3 || strlen(check) > MAX_PHONE_NUM_LEN) {
+			if(check.len < 3 || check.len > MAX_PHONE_NUM_LEN) {
 				printf("invalid character length");
 				continue;
 			}
@@ -737,12 +956,13 @@ void changeCustomerDetails(customer_t *customerp) {
 			if(strcmp(check, "c") == 0) {
 				continue;
 			}
-			if(strlen(check) < 3 || strlen(check) > MAX_CLIENT_ID_LEN) {
+			if(check.len < 3 || check.len > MAX_CLIENT_ID_LEN) {
 				printf("invalid character length");
 				continue;
 			}
 			strcpy(check, customerp->clientId);
 			continue;
+		}
 		}
 
 		if(strcmp(choice, "email") == 0) {
@@ -752,7 +972,7 @@ void changeCustomerDetails(customer_t *customerp) {
 			if(strcmp(check, "c") == 0) {
 				continue;
 			}
-			if(strlen(check) < 3 || strlen(check) > MAX_EMAIL_LEN) {
+			if(check.len < 3 || check.len > MAX_EMAIL_LEN) {
 				printf("invalid character length");
 				continue;
 			}
@@ -767,7 +987,7 @@ void changeCustomerDetails(customer_t *customerp) {
 			if(strcmp(check, "c") == 0) {
 				continue;
 			}
-			if(strlen(check) < 1 || strlen(check) > 2) {
+			if(check.len < 1 || check.len > 2) {
 				printf("invalid character length");
 				continue;
 			}
@@ -778,7 +998,7 @@ void changeCustomerDetails(customer_t *customerp) {
 			if(strcmp(check, "c") == 0) {
 				continue;
 			}
-			if(strlen(check) < 1 || strlen(check) > 2) {
+			if(check.len < 1 || check.len > 2) {
 				printf("invalid character length");
 				continue;
 			}
@@ -789,7 +1009,7 @@ void changeCustomerDetails(customer_t *customerp) {
 			if(strcmp(check, "c") == 0) {
 				continue;
 			}
-			if(strlen(check) < 1 || strlen(check) > 2) {
+			if(check.len < 1 || check.len > 2) {
 				printf("invalid character length");
 				continue;
 			}
@@ -801,10 +1021,11 @@ void changeCustomerDetails(customer_t *customerp) {
 			displayAccounts(customerp);
 			
 		}
-	}
 	
 	return;
-}
+	
+	*/
+
 
 	/*char name[MAX_NAME_SIZE];
 	char postCode[MAX_POSTCODE_LEN];
@@ -824,20 +1045,20 @@ void changeCustomerDetails(customer_t *customerp) {
  * outputs:
  * - none
 *******************************************************************************/
-void displayCustomer(customer_t* customerp) {
+void displayCustomer(customer_t customer) {
 
-	printf("full name> %s\n", customerp->name);
-	printf("postcode> %s\n", customerp->postCode);
-	printf("phone number> %s\n", customerp->phone);
-	printf("client ID> %s\n", customerp->clientId[0]);
-	printf("email> %s", customerp->email);
-	printf("birthday> %d/%d/%d", customerp->birthday.day, customerp->birthday.month, 
-	customerp->birthday.year);
-	printf("balance> %u", customerp->customerBalance);
+	printf("full name> %s\n", customer.name);
+	printf("postcode> %s\n", customer.postCode);
+	printf("phone number> %s\n", customer.phone);
+	printf("client ID> %s\n", customer.clientId[0]);
+	printf("email> %s", customer.email);
+	printf("birthday> %d/%d/%d", customer.birthday.day, customer.birthday.month, 
+	customer.birthday.year);
+	printf("balance> %u", customer.customerBalance);
 
-	displayAccounts(customerp);
-}
-
+	displayAccounts(&customer);
+	
+    
 	/* If this is to be printed, I need an int to pass into fn that representes current account list size or array len is made dynamic */
 
 	/* printf("account list> \n");
@@ -849,6 +1070,7 @@ void displayCustomer(customer_t* customerp) {
 
 	} */
 
+}
 /*******************************************************************************
  * This function resets the menu if the manager chooses an invalid option
  * inputs:
@@ -879,23 +1101,25 @@ void addAccount(customer_t *customer){
 
 }
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function generates an account number that is unique for each account.
  * inputs:
- * - none
+ * - the number of acconts stored in the customer struct.
  * outputs:
- * - none
+ * - an account number (nextAccount).
 *******************************************************************************/
 
 unsigned long generateAccountNum(customer_t *customer) {
-	unsigned long nextAccount = 10000000 + customer->numAccounts + (rand() % 1000);
+	unsigned long nextAccount = 
+	10000000 + customer->numAccounts + (rand() % 1000);
 	return nextAccount;
 }
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function dsiplays the account infomation of the customer.
  * inputs:
- * - none
+ * - The number of accounts stored in customer struct.
+ * - The list of accounts in the customer struct.
  * outputs:
- * - none
+ * - printed list of accounts.
 *******************************************************************************/
 
 void displayAccounts(customer_t *customer) {
@@ -906,11 +1130,13 @@ void displayAccounts(customer_t *customer) {
 
 }
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function displays an individual account.
  * inputs:
- * - none
+ * - Account infomation (name, number) from the specific accounts from 
+ * - 	displayAccouns function.
  * outputs:
- * - none
+ * - Prints the account infomation (name, number) and its balance.
+ * - Prints a sorted list of the transactions within the account.
 *******************************************************************************/
 
 void displayAccount(account_t *account){
@@ -919,11 +1145,15 @@ void displayAccount(account_t *account){
 	printSortedTransactions(account);
 }
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function adds an amount inputed by the customer into a choosen account.
  * inputs:
- * - none
+ * - Number of accounts stored in the customer struct.
+ * - A specified account.
+ * - User inputed amount and name of transaction.
  * outputs:
- * - none
+ * - Stores the transaction within the transaction list in the account struct.
+ * - Increases customer balance by choosen amount.
+ * - Outputs the calculated balance using the calcBalance function.
 *******************************************************************************/
 
 void deposit(customer_t *customer, account_t *account){
@@ -937,15 +1167,19 @@ void deposit(customer_t *customer, account_t *account){
 	account->transactionList[account->numTransactions++] = transaction;
 	customer->customerBalance = customer->customerBalance + transaction.amount;
 
-/*to do check*/
 	printf("account balance: %d", calcBalance(account));
 }
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function subtracts an amount inp[utted by the customer from the choosen 
+ * - 	account.
  * inputs:
- * - none
+ * - Number of accounts stored in the customer struct.
+ * - A specified account.
+ * - User inputed amount and name of transaction.
  * outputs:
- * - none
+ * - Stores the transaction within the transaction list in the account struct.
+ * - Decreases customer balance by choosen amount.
+ * - Outputs the calculated balance using the calcBalance function.
 *******************************************************************************/
 
 void withdraw(customer_t *customer, account_t *account){
@@ -968,11 +1202,16 @@ void withdraw(customer_t *customer, account_t *account){
 	printf("account balance: %d", calcBalance(account));
 }
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function withdraws an amount from one account and places it in another.
  * inputs:
- * - none
+ * - The account and transaction details stored in the customer struct:
+ * - 	The number of transactions.
+ * - 	The account name.
+* - The amount and reason for the transfer(transferAmount, reason).
+* - From and to stoires the selcted accounts to be transfered from and to.
  * outputs:
- * - none
+ * - The two transactions are stored into the transaction list.
+ * - The transaction that has occured is printed amount and accounts.
 *******************************************************************************/
 
 void transfer(customer_t *customer){
@@ -986,8 +1225,8 @@ void transfer(customer_t *customer){
 	printf("enter reason> ");
 	scanf("%s", reason);
 
-	from = accountSelect("choose an acount to tranfer from: ", customer);
-	to = accountSelect("choose an acount to tranfer to: ", customer);
+	from = accountSelect("choose an account name to tranfer from: ", customer);
+	to = accountSelect("choose an account name to tranfer to: ", customer);
 
 	from->transactionList[from->numTransactions++] = 
 		transferWithdraw(reason, transferAmount);
@@ -1001,13 +1240,23 @@ void transfer(customer_t *customer){
 
 }
 
+/*******************************************************************************
+ * This function promts the user to select an account from the exsisting list.
+ * inputs:
+ * - A string that prompts the user to select an account.
+ * - Account list stored in the customer struct for account name.
+ * - The number of accounts stored in the customer struct.
+ * outputs:
+ * - Returns the selcted account.
+*******************************************************************************/
+
 account_t* accountSelect(char* prompt, customer_t *customer) {
 	char accName[MAX_ACCOUNT_NAME_SIZE];
 	unsigned int i;
 	displayAccounts(customer);
 	printf("%s", prompt);
 	scanf("%s", accName);
-	for(i=0; i<customer->numAccounts; i++){
+	for(i=0; i<customer->numAccounts; i++) {
 		if(strcmp(accName, customer->accountList[i].accName) == 0) {
 			return &(customer->accountList[i]);
 		}
@@ -1017,26 +1266,34 @@ account_t* accountSelect(char* prompt, customer_t *customer) {
 }
 
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function returns the deatails of the account transfered from (negative). 
  * inputs:
- * - none
+ * - Name of transaction.
+ * - The amount in the transaction.
  * outputs:
- * - none
+ * - Returns the details of the transaction to be stored in transaction list.
 *******************************************************************************/
 transaction_t transferWithdraw(char transName[MAX_ACCOUNT_NAME_SIZE], 
-int transAmount){
+int transAmount) {
 	transaction_t transaction;
 
 	strcpy(transaction.name, transName);
 	transaction.amount = -transAmount;
 
-
-
 	return transaction;
 }
 
+/*******************************************************************************
+ * This function returns the deatails of the account transfered to (positive). 
+ * inputs:
+ * - Name of transaction.
+ * - The amount in the transaction.
+ * outputs:
+ * - Returns the details of the transaction to be stored in transaction list.
+*******************************************************************************/
+
 transaction_t transferDeposit(char transName[MAX_ACCOUNT_NAME_SIZE], 
-int transAmount){
+int transAmount) {
 	transaction_t transaction;
 
 	strcpy(transaction.name, transName);
@@ -1045,31 +1302,44 @@ int transAmount){
 	return transaction;
 }
 
-void printTransaction(transaction_t *transaction, int count){
+/*******************************************************************************
+ * This function prints the details of a transaction.
+ * inputs:
+ * - The name and amount stored in the choosen transaction.
+ * - A count for listing the transactions by number.
+ * outputs:
+ * - The details of the transaction.
+*******************************************************************************/
+
+void printTransaction(transaction_t *transaction, int count) {
 	printf("%d. %s $%d\n", count, transaction->name, transaction->amount);
 }
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function calculates the balance in a choosen account.
  * inputs:
- * - none
+ * - The account choosen for the number of transactions and amount stored in the
+ * - 	transaction list.
  * outputs:
- * - none
+ * - Returns the balance of the account.
 *******************************************************************************/
 
-int calcBalance(account_t *account){
+int calcBalance(account_t *account) {
 	int balance = 0;
 	unsigned int i;
-	for(i=0; i<account->numTransactions; ++i){
+	for(i=0; i<account->numTransactions; ++i) {
 		balance += account->transactionList[i].amount;
 	}
 	return balance;
 }
 /*******************************************************************************
- * This function resets the menu if the customer chooses an invalid option
+ * This function is used for inccorect user inputs in the main menu.
  * inputs:
- * - none
+ * - Details stored in customer.
  * outputs:
- * - none
+ * - Prints invalid choice.
+ * - 	Recursive function:
+ * - Executes the customer menu function.
+ * - Executes the read customer answer function. 
 *******************************************************************************/
 void invalidCustomerChoice(customer_t *customer) {
 	printf("Invalid choice.\n");
@@ -1077,40 +1347,89 @@ void invalidCustomerChoice(customer_t *customer) {
 	readCustomerAnswer(customer);
 }
 
-
 /*******************************************************************************
- * This function searches customer transactions
+ * This function searches customer transactions by amount range.
  * inputs:
- * - customer_t, transaction_t
+ * - Choice of range to search in.
+ * - The number of transactions.
+ * - The number of accounts.
+ * - The amounts stored in account transaction lists.
  * outputs:
- * - none
+ * -  printed list of the transactions that are within the choosen range.
 *******************************************************************************/
-void searchTransactions(customer_t *customer)
-{
-	int r1, r2;
-	int results = 0;
+void searchTransactions(customer_t *customer){
+	int choice;
+	char tempchoice[20];
+	int check =0;
+	int r1,r2;
+	int results =0;
 	unsigned int iter, i;
-	printf("enter the rannge to search in separated by a space: ");
-	scanf("%d %d", &r1, &r2);
 
-	for(i = 0; i<customer->numAccounts; i++){
-		for(iter = 0; iter<customer->accountList[i].numTransactions; iter++){
+	
+	while (check ==0){	
+	printf(
+		"Select either 1,2,3,4 or 5:\n"
+		"1) $0 - $99\n"
+		"2) $100 - $999\n"
+		"3) $1000 - $99,999\n"
+		"4) $100,000 - $999,999\n"
+		"5) $1,000,000 and above\n");
+		scanf("%s", &tempchoice[0]);
+		choice = atoi(tempchoice);
+		if(choice == 0){
+			printf("Invalid Answer. ");
+		} else{
+			if (choice >=1 && choice <= 5){
+				check = 1;
+			} else printf("Invalid Answer. ");
+		}
+	}
+	
+	if (choice ==1) {
+		r1 = 0;
+		r2 = 99;
+	} else if (choice ==2) {
+		r1 = 100;
+		r2 = 999;
+	} else if (choice ==3) {
+		r1 = 1000;
+		r2 = 99999;
+	} else if (choice ==4) {
+		r1 = 100000;
+		r2 = 999999;
+	} else if (choice ==5) {
+		r1 = 1000000;
+		r2 = 999999999;
+	}
+
+	for(i = 0; i<customer->numAccounts; i++) {
+		for(iter = 0; iter<customer->accountList[i].numTransactions; iter++) {
 			if(r1 <= customer->accountList[i].transactionList[iter].amount &&
-			r2 >= customer->accountList[i].transactionList[iter].amount){
-				++results;
-				printTransaction(&customer->accountList[i].transactionList[iter]
-				, results);
+				r2 >= customer->accountList[i].transactionList[iter].amount) {
+					++results;
+					printTransaction(&customer->
+						accountList[i].transactionList[iter], results);
 			}
-			else{
+			else {
 				continue;
 			}
-		}
-		
+		}	
 	}
-	if(results == 0){
-		printf("no results found in this range");
+	if(results == 0) {
+		printf("no results found in this range\n");
 	}
 }
+
+/*******************************************************************************
+ * This function search customer transactions by name.
+ * inputs:
+ * - The name of transaction the user is searching for.
+ * - The number of accounts.
+ * - The number of transactions.
+ * - The name of transactions stored in the transaction lists.
+ * outputs:
+ * - Prints the transaction details of transactions with the choosen name. 
+*******************************************************************************/
 
 void searchByName(customer_t *customer) {
 	int results = 0;
@@ -1125,8 +1444,8 @@ void searchByName(customer_t *customer) {
 			if(strcmp((searchName), 
 				(customer->accountList[i].transactionList[iter].name)) == 0) {
 					++results;
-					printTransaction(&customer->accountList[i].transactionList[iter], 
-						results);
+					printTransaction(&customer->
+						accountList[i].transactionList[iter], results);
 			}
 			else {
 				continue;
@@ -1137,6 +1456,16 @@ void searchByName(customer_t *customer) {
 		printf("no results with that name found");
 	}
 }
+
+/*******************************************************************************
+ * This function sorts the transactions from lowest to highest amounts.
+ * inputs:
+ * - The list of transactions stored within a copy 
+ * - 	(so actual list is not affected).
+ * - The number of tranactions.
+ * outputs:
+ * - Creates a list of sorted trnasactions from lowest to highest.
+*******************************************************************************/
 
 void sortTransactions(transaction_t* list, unsigned int numTransactions) {
 	unsigned int i,j;
@@ -1153,6 +1482,17 @@ void sortTransactions(transaction_t* list, unsigned int numTransactions) {
 	}
 }
 
+/*******************************************************************************
+ * This function prints the list of sorted transactions.
+ * inputs:
+ * - Number of transactions.
+ * - A temporary list.
+ * - The list of transactions.
+ * outputs:
+ * - Stores the list of transactions in a temporary list.
+ * - Prints a sorted list of transactions using the print transaction function.
+*******************************************************************************/
+
 void printSortedTransactions(account_t * account) {
 	transaction_t sortedList[MAX_TRANSACTION_SIZE];
 	unsigned int i;
@@ -1165,5 +1505,6 @@ void printSortedTransactions(account_t * account) {
 	}
 
 }
-
-
+/*******************************************************************************
+ * - End of program.
+*******************************************************************************/
