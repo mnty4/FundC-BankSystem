@@ -39,6 +39,7 @@
  * List preprocessing directives
 *******************************************************************************/
 
+#define MAX_SELECTION_LEN 20
 #define MAX_TRANSACTION_NAME 20
 #define MAX_TRANSACTION_SIZE 100
 #define MAX_NAME_SIZE 25
@@ -48,10 +49,10 @@
 #define MAX_STREET_NAME_SIZE 20
 #define MAX_SUBURB_NAME_SIZE 30
 #define MAX_EMAIL_LEN 20
+#define MIN_EMAIL_LEN 5
 #define MAX_POSTCODE_LEN 5
 #define MAX_CLIENT_ID_LEN 5
 #define MAX_PHONE_NUM_LEN 10
-#define MAX_USERNAME_LEN 20
 #define MIN_PASSWORD_LEN 3
 #define MAX_PASSWORD_LEN 20
 #define BUFFER_SIZE 1000
@@ -149,7 +150,8 @@ void printTransaction(transaction_t *transaction, int count);
 
 /* Shared */
 void printMenu(void);               	/* Author: Thomas Good - DONE */
-/*int login(void);*/                   	/* Author: Lukas Gaspar - DONE */
+int login(void);                   	/* Author: Lukas Gaspar - DONE */
+char *fgets_wrapper(char *buffer, size_t buflen, FILE *fp);
 void changePassword(void);          	/* Author: Lukas Gaspar - shouldnt password be customer struct variable? */
 
 void searchTransactions(customer_t *customer); 	
@@ -167,14 +169,16 @@ transaction_t transferDeposit
 void sortTransactions(transaction_t* list, unsigned int numTransactions); 
 	/* Author: Reece Wallace - DONE */
 void searchByName(customer_t *customer);  /* Author: Reece Wallace */
-void authenticate(char *a, char *b);	 /* Author: Lukas Gaspar */
+int authenticate(char email[MAX_EMAIL_LEN], char password[MAX_PASSWORD_LEN]);	 /* Author: Lukas Gaspar */
 /*int logout;*/							/* Author: Jeremy Hoy - */
 
 
 int main(void) {
+	
+	
 	printMenu();
-	printManagerMenu();
-	readManagerAnswer();
+	/*printManagerMenu();
+	readManagerAnswer();*/
     return 0;
 }
 
@@ -187,12 +191,26 @@ int main(void) {
  * - none
 *******************************************************************************/
 void printMenu(void){
+	for(;;){
     printf("\n\n"
-    	"-------Welcome to EZY Banking System 1.0-------\n"
+    	"-----Welcome to EZY Banking System 1.0-----\n"
         "Please enter your login details to proceed\n"
         "-------------------------------------------\n");
 		
-		
+		int status = login();
+		if(status == -1)
+		continue;
+		if(status == 0)
+		return;
+		if(status == 1) {
+		printf("congratulations you are a customer!");
+		return;
+		}
+		if(status == 2) {
+		printf("congratulations you are a manager!");
+		return;
+		}
+	}
 
 		/* readCustomerAnswer(&customer); */
 	/*authenticate();*/
@@ -205,55 +223,105 @@ void printMenu(void){
  * outputs:
  * - none
 *******************************************************************************/
-/*void authenticate(void){
-
-}*/
+int authenticate(char email[MAX_EMAIL_LEN], char password[MAX_PASSWORD_LEN]){
+	return 0;
+}
 /*******************************************************************************
- * This function logs in the user
+ * This function logs in the user    string.h
  * inputs:
  * - none
  * outputs:
  * - int used to return the user's login status (0 - no authorisation, 1 - customer, 2 - manager)
 *******************************************************************************/
-/*int login(void) {*/
-	/*int loginStatus = 0;*/
-	/*char username[MAX_USERNAME_LEN];
+int login(void) {
+	int loginStatus = 0;
+	char selection[BUFFER_SIZE];
+	char email[MAX_EMAIL_LEN];
 	char password[MAX_PASSWORD_LEN];
 
-
-	for(;;) { 
-		printf("Enter \"back\" at any time to go back to the menu\n");
-		printf("Enter username> ");
-		scanf("%100[^\n]", username);
-		printf("Enter password> ");
-		scanf("%100[^\n]", password);
-		if(authenticate(&username[MAX_USERNAME_LEN], &password[MAX_PASSWORD_LEN]) == 0) {
-			printf("incorrect username or password\n");
-
-			for(;;) {
-				printf("go back to the menu? (y/N): ");
-				char check[100];
-				scanf("%100[^\n]", check);
-				if(strcmp(check, "y") == 0) {
-					return 3;
+	for(;;) {
+		for(;;) {
+			printf("select an option:\n"
+					"login\n"
+					"close\n\n"
+					"choice: ");
+			if(fgets_wrapper(selection, MAX_SELECTION_LEN, stdin) != 0){
+				printf("%s", selection);
+				if(strcmp(selection, "close") == 0)
+					return 0;
+				if(strcmp(selection, "login") != 0) {
+					printf("invalid selection\n");
+					return -1;
 				}
-				if(strcmp(check, "N") == 0) {
-					break;
-				}
-				printf("invalid choice\n");
-				continue;
+				break;
 			}
 		}
-		if(authenticate(&username[MAX_USERNAME_LEN], &password[MAX_PASSWORD_LEN]) == 1) {*/
-			/*return 1;*/ /* Authenticated as customer. */
-		/*}*/
-		/*if(authenticate(&username[MAX_USERNAME_LEN], &password[MAX_PASSWORD_LEN]) == 2) {
-			return 2;*/ /* Authenticated as manager. */
-		/*}
+
+
+		for(;;) {
+			printf("\nEnter \"back\" at any time to go back to the menu\n");
+			printf("Enter email> ");
+			if(fgets_wrapper(selection, BUFFER_SIZE, stdin) != 0) {
+				if(strcmp(selection, "back") == 0)
+					return -1;
+				if(strlen(selection) > MAX_EMAIL_LEN || strlen(selection) < MIN_EMAIL_LEN) {
+					printf("invalid email length");
+					continue;
+				}
+				strcpy(email, selection);
+				break;
+			}
+		}
+
+		for(;;) {
+			printf("\nEnter \"back\" at any time to go back to the menu\n");
+			printf("Enter password> ");
+			if(fgets_wrapper(selection, BUFFER_SIZE, stdin) != 0) {
+				if(strcmp(selection, "back") == 0)
+					return -1;
+				if(strlen(selection) > MAX_PASSWORD_LEN || strlen(selection) < MIN_PASSWORD_LEN) {
+					printf("invalid password length");
+					continue;
+				}
+				strcpy(password, selection);
+				break;
+			}
+		}
+
+		if(authenticate(&email[MAX_EMAIL_LEN], &password[MAX_PASSWORD_LEN]) == 0) {
+			printf("incorrect email or password");
+			return -1;
+		}
+		if(authenticate(&email[MAX_EMAIL_LEN], &password[MAX_PASSWORD_LEN]) == 1) {
+			return 1; /*Authenticated as customer. */
+		}
+		if(authenticate(&email[MAX_EMAIL_LEN], &password[MAX_PASSWORD_LEN]) == 2) {
+			return 2; /*Authenticated as manager. */
+		}
 		printf("unknown authentication return value");
+		return 0;
 	}
 }
-*/
+
+
+
+char *fgets_wrapper(char *buffer, size_t buflen, FILE *fp)
+{
+    if (fgets(buffer, buflen, fp) != 0)
+    {
+        size_t len = strlen(buffer);
+        if (len > 0 && buffer[len-1] == '\n')
+            buffer[len-1] = '\0';
+        else
+        {
+             int ch;
+             while ((ch = getc(fp)) != EOF && ch != '\n')
+                ;
+        }
+        return buffer;
+    }
+    return 0;
+}
 /*******************************************************************************
  * This function generates the customerId when created
  * inputs:
