@@ -48,11 +48,12 @@
 #define MAX_STATE_NAME_SIZE 20
 #define MAX_STREET_NAME_SIZE 20
 #define MAX_SUBURB_NAME_SIZE 30
-#define MAX_EMAIL_LEN 20
 #define MIN_EMAIL_LEN 5
+#define MAX_EMAIL_LEN 20
 #define MAX_POSTCODE_LEN 5
 #define MAX_CLIENT_ID_LEN 5
 #define MAX_PHONE_NUM_LEN 10
+#define MAX_USERNAME_LEN 20
 #define MIN_PASSWORD_LEN 3
 #define MAX_PASSWORD_LEN 20
 #define BUFFER_SIZE 1000
@@ -150,8 +151,8 @@ void printTransaction(transaction_t *transaction, int count);
 
 /* Shared */
 void printMenu(void);               	/* Author: Thomas Good - DONE */
-int login(void);                   	/* Author: Lukas Gaspar - DONE */
-char *fgets_wrapper(char *buffer, size_t buflen, FILE *fp);
+int login(void);                  	/* Author: Lukas Gaspar - DONE */
+char *fgets_wrapper(char *buffer, size_t buflen, FILE *fp); /* Author: Lukas Gaspar - DONE */
 void changePassword(void);          	/* Author: Lukas Gaspar - shouldnt password be customer struct variable? */
 
 void searchTransactions(customer_t *customer); 	
@@ -174,11 +175,9 @@ int authenticate(char email[MAX_EMAIL_LEN], char password[MAX_PASSWORD_LEN]);	 /
 
 
 int main(void) {
-	
-	
 	printMenu();
-	/*printManagerMenu();
-	readManagerAnswer();*/
+	printManagerMenu();
+	readManagerAnswer();
     return 0;
 }
 
@@ -191,7 +190,8 @@ int main(void) {
  * - none
 *******************************************************************************/
 void printMenu(void){
-	for(;;){
+	
+    for(;;){
     printf("\n\n"
     	"-----Welcome to EZY Banking System 1.0-----\n"
         "Please enter your login details to proceed\n"
@@ -211,7 +211,6 @@ void printMenu(void){
 		return;
 		}
 	}
-
 		/* readCustomerAnswer(&customer); */
 	/*authenticate();*/
 }
@@ -224,18 +223,17 @@ void printMenu(void){
  * - none
 *******************************************************************************/
 int authenticate(char email[MAX_EMAIL_LEN], char password[MAX_PASSWORD_LEN]){
-	return 0;
+	return 1;
 }
 /*******************************************************************************
- * This function logs in the user    string.h
+ * This function logs in the user
  * inputs:
  * - none
  * outputs:
  * - int used to return the user's login status (0 - no authorisation, 1 - customer, 2 - manager)
 *******************************************************************************/
 int login(void) {
-	int loginStatus = 0;
-	char selection[BUFFER_SIZE];
+	char selection[MAX_SELECTION_LEN];
 	char email[MAX_EMAIL_LEN];
 	char password[MAX_PASSWORD_LEN];
 
@@ -261,7 +259,7 @@ int login(void) {
 		for(;;) {
 			printf("\nEnter \"back\" at any time to go back to the menu\n");
 			printf("Enter email> ");
-			if(fgets_wrapper(selection, BUFFER_SIZE, stdin) != 0) {
+			if(fgets_wrapper(selection, MAX_EMAIL_LEN, stdin) != 0) {
 				if(strcmp(selection, "back") == 0)
 					return -1;
 				if(strlen(selection) > MAX_EMAIL_LEN || strlen(selection) < MIN_EMAIL_LEN) {
@@ -271,12 +269,13 @@ int login(void) {
 				strcpy(email, selection);
 				break;
 			}
+			printf("invalid email length");
 		}
 
 		for(;;) {
 			printf("\nEnter \"back\" at any time to go back to the menu\n");
 			printf("Enter password> ");
-			if(fgets_wrapper(selection, BUFFER_SIZE, stdin) != 0) {
+			if(fgets_wrapper(selection, MAX_PASSWORD_LEN, stdin) != 0) {
 				if(strcmp(selection, "back") == 0)
 					return -1;
 				if(strlen(selection) > MAX_PASSWORD_LEN || strlen(selection) < MIN_PASSWORD_LEN) {
@@ -286,6 +285,7 @@ int login(void) {
 				strcpy(password, selection);
 				break;
 			}
+			printf("invalid password length");
 		}
 
 		if(authenticate(&email[MAX_EMAIL_LEN], &password[MAX_PASSWORD_LEN]) == 0) {
@@ -303,23 +303,34 @@ int login(void) {
 	}
 }
 
-
+/*******************************************************************************
+ * This function is a wrapper for fgets that removes the new line character and eats any extra chars
+ * inputs:
+ * - buffer: pointer to an array of chars where we store the string
+ * - buflen: max amount of chars read in
+ * - fp: file pointer
+ * outputs:
+ * - the pointer to an array, either returns empty string or the modified buffer
+*******************************************************************************/
 
 char *fgets_wrapper(char *buffer, size_t buflen, FILE *fp)
 {
-    if (fgets(buffer, buflen, fp) != 0)
-    {
-        size_t len = strlen(buffer);
-        if (len > 0 && buffer[len-1] == '\n')
-            buffer[len-1] = '\0';
-        else
-        {
-             int ch;
-             while ((ch = getc(fp)) != EOF && ch != '\n')
-                ;
-        }
-        return buffer;
-    }
+	char temp[BUFFER_SIZE];
+	if (fgets(temp, BUFFER_SIZE, fp) != 0 && strlen(temp) < buflen) {
+		if (strcpy(buffer, temp) != 0)
+		{
+			size_t len = strlen(buffer);
+			if (len > 0 && buffer[len-1] == '\n')
+				buffer[len-1] = '\0';
+			else
+			{
+				int ch; 
+				while ((ch = getc(fp)) != EOF && ch != '\n') /* eats chars */
+					;
+			}
+			return buffer;
+		}
+	}
     return 0;
 }
 /*******************************************************************************
